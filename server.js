@@ -21,12 +21,47 @@ const Countries = db.define('country', {
         validate: {
             notEmpty: true
         }
+    },
+    abbrv: {
+        type: Sequelize.STRING,
+        UNIQUE: true,
+        allowNull: true,
+        validate: {
+            notEmpty: false
+        }
     }
 });
 
 // using express to create our app
 const express = require('express');
 const app = express();
+// use urlencoded middleware to parse the posted form data to js object data, which is available as req.body
+app.use(express.urlencoded({ extended: false }));
+
+app.post('/cities', async(req, res, next) => {
+    try {
+        let {name, countryName, countryAbbrv} = req.body;
+        //console.log(req.body);
+        //console.log(name, countryName, countryAbbrv)
+        name = capitalize(name);
+        countryName = capitalize(countryName);
+        countryAbbrv = countryAbbrv.toUpperCase();
+
+        let country = await Countries.findOne({ 
+            where: {name: countryName} 
+        });
+        
+        // if country added does not exist, create one
+        if (!country) country = await Countries.create({ name: countryName, abbrv: countryAbbrv });
+
+        await Cities.create({ name, countryId: country.id });
+        //console.log(country);
+        res.redirect(`/countries/${countryName}`);
+    }
+    catch (err) {
+        next(err);
+    }
+});
 
 app.get('/', (req, res) => res.redirect('/cities'));
 
@@ -36,10 +71,14 @@ app.get('/cities', async(req, res, next) => {
             include: [ Countries ]
         });
         //console.log(cities);
+
+        // we need table Countries here when using post method
+        const countries = await Countries.findAll();
+
         const html = cities.map(city => `
             <div>
             ${city.name}
-            <a href='/countries/${city.country.id}'>${city.country.name}</a>
+            <a href='/countries/${city.country.name}'>${city.country.name}</a>
             </div>`
         ).join('');
 
@@ -50,6 +89,15 @@ app.get('/cities', async(req, res, next) => {
             </head>
             <body>
                 <h1>Cities that Been Traveled</h1>
+                <form method='POST'>
+                    <label for='name'>City:</label>&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&ensp;&nbsp;   
+                    <label for='countryName'>Country:</label>&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&nbsp;
+                    <label for='countryAbbrv'>Country Abbreviation:</label><br>
+                    <input type='text' name='name'>
+                    <input type='text' name='countryName'>
+                    <input type='text' name='countryAbbrv'>
+                    <button>Create</button>
+                </form>
                 ${html}
             </body>
         </html>
@@ -60,13 +108,18 @@ app.get('/cities', async(req, res, next) => {
     }
 });
 
-app.get('/countries/:id', async(req, res, next) => {
+app.get('/countries/:name', async(req, res, next) => {
     try {
-        const countryId = req.params.id;
-        const country = await Countries.findByPk(countryId, {
+        // const countryId = req.params.id;
+        // const country = await Countries.findByPk(countryId, {
+        //     include: [ Cities ]
+        // });
+        const countryName = req.params.name;
+        const country = await Countries.findOne({
+            where: {name: countryName},
             include: [ Cities ]
         });
-        //console.log(countries);
+        //console.log(country);
         const cities = country.cities;
         const html = cities.map(city => `
             <div>
@@ -80,7 +133,7 @@ app.get('/countries/:id', async(req, res, next) => {
                 <title>Cities that Been Traveled</title>
             </head>
             <body>
-                <h1><font size='-0.5'>Cities that Been Visited in</font> ${country.name}</h1>
+                <h1><font size='-0.5'>Cities that Been Visited in</font> ${country.name} (${country.abbrv})</h1>
                 <a href='/cities'>Go back</a>
                 ${html}
             </body>
@@ -104,12 +157,12 @@ const init = async() => {
         await db.sync({ force: true });
 
         // create table elements into tables
-        const france = await Countries.create({ name: 'France (FRA)' });
-        const germany = await Countries.create({ name: 'Germany (DEU)' });
-        const spain = await Countries.create({ name: 'Spain (ESP)' });
-        const italy = await Countries.create({ name: 'Italy (ITA)' });
-        const usa = await Countries.create({ name: 'United States of America (USA)' });
-        const portugal = await Countries.create({ name: 'Portugal (PRT)' });
+        const france = await Countries.create({ name: 'France', abbrv: 'FRA' });
+        const germany = await Countries.create({ name: 'Germany', abbrv: 'DEU' });
+        const spain = await Countries.create({ name: 'Spain', abbrv: 'ESP' });
+        const italy = await Countries.create({ name: 'Italy', abbrv: 'ITA' });
+        const usa = await Countries.create({ name: 'United States of America', abbrv: 'USA' });
+        const portugal = await Countries.create({ name: 'Portugal', abbrv: 'PRT' });
         await Cities.create({ name: 'Paris', countryId: france.id });
         await Cities.create({ name: 'Bordeaux', countryId: france.id });
         await Cities.create({ name: 'Lyon', countryId: france.id });
@@ -149,3 +202,12 @@ const init = async() => {
 };
 
 init();
+
+// function to capitalize the first letter of every word
+const capitalize = str => {
+    const wordArr = str.split(' ');
+    return wordArr.map(word => {
+        if (!(word === 'of' || word === 'Of')) return word[0].toUpperCase() + word.slice(1).toLowerCase();
+        else return word.toLowerCase();
+    }).join(' ');
+};
