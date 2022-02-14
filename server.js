@@ -37,6 +37,29 @@ const express = require('express');
 const app = express();
 // use urlencoded middleware to parse the posted form data to js object data, which is available as req.body
 app.use(express.urlencoded({ extended: false }));
+// require methodoverride to override form method Post to method Delete, because form only have two methods: Post and Get.
+// in order to delete something with <form>, one has to override the keyword Post to Delete using middleware.
+const methodOverride = require('method-override');
+app.use(methodOverride('_method'));
+
+app.delete('/cities/:name', async(req, res, next) => {
+    try {
+        const cityName = req.params.name;
+        //onsole.log(req.params.name);
+        const city = await Cities.findOne({
+            where: {name: cityName},
+            include: [Countries]
+        });
+        console.log(city);
+        await Cities.destroy({
+            where: {name: cityName}
+        });
+        res.redirect(`/countries/${city.country.name}`)
+    }
+    catch (err) {
+        next(err);
+    }
+});
 
 app.post('/cities', async(req, res, next) => {
     try {
@@ -96,7 +119,7 @@ app.get('/cities', async(req, res, next) => {
                     <input type='text' name='name'>
                     <input type='text' name='countryName'>
                     <input type='text' name='countryAbbrv'>
-                    <button>Create</button>
+                    <button type='submit'>Create</button>
                 </form>
                 ${html}
             </body>
@@ -124,6 +147,9 @@ app.get('/countries/:name', async(req, res, next) => {
         const html = cities.map(city => `
             <div>
             ${city.name}
+            <form method='POST' action='/cities/${city.name}?_method=DELETE'>
+                <button type='submit'>Delete</button>
+            </form>
             </div>
         `).join('');
 
