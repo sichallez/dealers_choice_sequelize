@@ -66,16 +66,25 @@ router.get('/', async(req, res, next) => {
         const countries = await Countries.findAll();
 
         const html = cities.map(city => `
-            <div>
-            ${city.name}
-            <a href='/countries/${city.country.name}'>${city.country.name}</a>
-            </div>`
+            <tr>
+                <td>${city.name}</td>
+                <td><a href='/countries/${city.country.name}'>${city.country.name}</a></td>
+            </tr>`
         ).join('');
 
         res.send(`
         <html>
             <head>
                 <title>Cities that Been Traveled</title>
+                <style>
+                    table, td, th {
+                        border: 1px solid black;
+                        width: 300px;
+                    }
+                    td {
+                        text-align: center
+                    }
+                </style>
             </head>
             <body>
                 <h1>Cities that Been Traveled</h1>
@@ -88,7 +97,13 @@ router.get('/', async(req, res, next) => {
                     <input type='text' name='countryAbbrv'>
                     <button type='submit'>Create</button>
                 </form>
-                ${html}
+                <table style='width:40%'>
+                    <tr>
+                        <th>City</th>
+                        <th>Country</th>
+                    </tr>
+                    ${html}
+                </table>
             </body>
         </html>
         `);

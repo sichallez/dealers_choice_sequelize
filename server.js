@@ -73,12 +73,3 @@ const init = async() => {
 };
 
 init();
-
-// function to capitalize the first letter of every word
-const capitalize = str => {
-    const wordArr = str.split(' ');
-    return wordArr.map(word => {
-        if (!(word === 'of' || word === 'Of')) return word[0].toUpperCase() + word.slice(1).toLowerCase();
-        else return word.toLowerCase();
-    }).join(' ');
-};
