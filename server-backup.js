@@ -12,10 +12,137 @@ const methodOverride = require('method-override');
 app.use(methodOverride('_method'));
 
 // require middleware handler for all routes and subroutes
-app.use('/cities', require('./routes/cities'));
-app.use('/countries', require('./routes/countries'));
+// app.use('/cities', require('./routes/cities'));
+
+app.delete('/cities/:name', async(req, res, next) => {
+    try {
+        const cityName = req.params.name;
+        //onsole.log(req.params.name);
+        const city = await Cities.findOne({
+            where: {name: cityName},
+            include: [Countries]
+        });
+        console.log(city);
+        await Cities.destroy({
+            where: {name: cityName}
+        });
+        res.redirect(`/countries/${city.country.name}`)
+    }
+    catch (err) {
+        next(err);
+    }
+});
+
+app.post('/cities', async(req, res, next) => {
+    try {
+        let {name, countryName, countryAbbrv} = req.body;
+        //console.log(req.body);
+        //console.log(name, countryName, countryAbbrv)
+        name = capitalize(name);
+        countryName = capitalize(countryName);
+        countryAbbrv = countryAbbrv.toUpperCase();
+
+        let country = await Countries.findOne({ 
+            where: {name: countryName} 
+        });
+        
+        // if country added does not exist, create one
+        if (!country) country = await Countries.create({ name: countryName, abbrv: countryAbbrv });
+
+        await Cities.create({ name, countryId: country.id });
+        //console.log(country);
+        res.redirect(`/countries/${countryName}`);
+    }
+    catch (err) {
+        next(err);
+    }
+});
 
 app.get('/', (req, res) => res.redirect('/cities'));
+
+app.get('/cities', async(req, res, next) => {
+    try {
+        const cities = await Cities.findAll({
+            include: [ Countries ]
+        });
+        //console.log(cities);
+
+        // we need table Countries here when using post method
+        const countries = await Countries.findAll();
+
+        const html = cities.map(city => `
+            <div>
+            ${city.name}
+            <a href='/countries/${city.country.name}'>${city.country.name}</a>
+            </div>`
+        ).join('');
+
+        res.send(`
+        <html>
+            <head>
+                <title>Cities that Been Traveled</title>
+            </head>
+            <body>
+                <h1>Cities that Been Traveled</h1>
+                <form method='POST'>
+                    <label for='name'>City:</label>&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&ensp;&nbsp;   
+                    <label for='countryName'>Country:</label>&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&nbsp;
+                    <label for='countryAbbrv'>Country Abbreviation:</label><br>
+                    <input type='text' name='name'>
+                    <input type='text' name='countryName'>
+                    <input type='text' name='countryAbbrv'>
+                    <button type='submit'>Create</button>
+                </form>
+                ${html}
+            </body>
+        </html>
+        `);
+    }
+    catch (err) {
+        next(err);
+    }
+});
+
+app.get('/countries/:name', async(req, res, next) => {
+    try {
+        // const countryId = req.params.id;
+        // const country = await Countries.findByPk(countryId, {
+        //     include: [ Cities ]
+        // });
+        const countryName = req.params.name;
+        const country = await Countries.findOne({
+            where: {name: countryName},
+            include: [ Cities ]
+        });
+        //console.log(country);
+        const cities = country.cities;
+        const html = cities.map(city => `
+            <div>
+            ${city.name}
+            <form method='POST' action='/cities/${city.name}?_method=DELETE'>
+                <button type='submit'>Delete</button>
+            </form>
+            </div>
+        `).join('');
+
+        res.send(`
+        <html>
+            <head>
+                <title>Cities that Been Traveled</title>
+            </head>
+            <body>
+                <h1><font size='-0.5'>Cities that Been Visited in</font> ${country.name} (${country.abbrv})</h1>
+                <a href='/cities'>Go back</a>
+                ${html}
+            </body>
+        </html>
+        `);
+    }
+    catch (err) {
+        next(err);
+    }
+
+});
 
 // make Cities has a relation to Countries, or say making table countries be associated to table cities
 Cities.belongsTo(Countries);
