@@ -52,7 +52,7 @@ const init = async() => {
         await Cities.create({ name: 'Stuttgart', countryId: germany.id });
         await Cities.create({ name: 'Freiburg', countryId: germany.id });
         await Cities.create({ name: 'Genoa', countryId: italy.id });
-        await Cities.create({ name: 'Genoa', countryId: italy.id });
+        // await Cities.create({ name: 'Genoa', countryId: italy.id });
         await Cities.create({ name: 'Palermo', countryId: italy.id });
         await Cities.create({ name: 'Milan', countryId: italy.id });
         await Cities.create({ name: 'Barcelona', countryId: spain.id });
